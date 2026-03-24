@@ -9,6 +9,7 @@ def get_main_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
+
 def get_categories_keyboard(include_all=True):
     categories = ['Фильмы', 'Книги', 'Сериалы', 'Музыка', 'Еда/Рестораны', 'Товары', 'Другое']
     buttons = []
@@ -18,17 +19,47 @@ def get_categories_keyboard(include_all=True):
         buttons.append([InlineKeyboardButton("Все категории", callback_data="cat_all")])
     return InlineKeyboardMarkup(buttons)
 
+
 def get_pagination_keyboard(data_type, page, total_pages, rec_id=None):
-    """data_type: 'list' or 'search', page: current page, total_pages: total pages"""
     keyboard = []
+    nav_buttons = []
     if page > 0:
-        keyboard.append(InlineKeyboardButton("◀️ Назад", callback_data=f"{data_type}_prev_{page}"))
+        nav_buttons.append(InlineKeyboardButton("◀️ Назад", callback_data=f"{data_type}_prev_{page}"))
     if page < total_pages - 1:
-        keyboard.append(InlineKeyboardButton("Вперёд ▶️", callback_data=f"{data_type}_next_{page}"))
+        nav_buttons.append(InlineKeyboardButton("Вперёд ▶️", callback_data=f"{data_type}_next_{page}"))
+
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+
     if rec_id:
-        # For edit/delete selection inline
-        keyboard.append(InlineKeyboardButton("Выбрать", callback_data=f"select_{rec_id}"))
-    return InlineKeyboardMarkup([keyboard]) if keyboard else None
+        keyboard.append([InlineKeyboardButton("Выбрать", callback_data=f"select_{rec_id}")])
+
+    return InlineKeyboardMarkup(keyboard) if keyboard else None
+
 
 def format_recommendation(rec):
     return f"📌 <b>{rec[2]}</b> ({rec[1]})\n💬 {rec[3] or 'Без комментария'}\n🕒 {rec[4]}\nID: <code>{rec[0]}</code>"
+
+def send_message(chat_id, text, parse_mode="HTML", proxy=None):
+    """Отправка текстового сообщения (синхронная версия)"""
+    import requests
+    import config
+    url = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
+    data = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+    try:
+        requests.post(url, json=data, proxies=proxy, timeout=10)
+    except:
+        pass
+
+def send_keyboard(chat_id, text, buttons, proxy=None):
+    """Отправка сообщения с reply keyboard"""
+    import requests
+    import json
+    import config
+    url = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
+    keyboard = {"keyboard": buttons, "resize_keyboard": True}
+    data = {"chat_id": chat_id, "text": text, "reply_markup": json.dumps(keyboard)}
+    try:
+        requests.post(url, json=data, proxies=proxy, timeout=10)
+    except:
+        pass

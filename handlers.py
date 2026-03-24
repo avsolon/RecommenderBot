@@ -2,10 +2,12 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
-from telegram.error import BadRequest
 import db
 import utils
 import parsing
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Состояния для ConversationHandler
 CATEGORY, TITLE, COMMENT = range(3)
@@ -15,13 +17,46 @@ DELETE_CONFIRM = range(6, 7)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    print(f"🔵🔵🔵 ПОЛУЧЕНА КОМАНДА START от {user.id} 🔵🔵🔵")
+
+    # Создаем клавиатуру
+    keyboard = [
+        ['➕ Добавить', '🔍 Найти'],
+        ['📋 Мои рекомендации', '🎲 Случайная'],
+        ['✏️ Редактировать', '❌ Удалить'],
+        ['❓ Помощь']
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
     await update.message.reply_text(
-        f"Привет, {user.first_name}! 👋\n"
+        f"Привет, {user.first_name}! 👋\n\n"
         "Я бот для хранения рекомендаций.\n"
-        "Ты можешь добавлять фильмы, книги, музыку и многое другое.\n"
-        "Используй кнопки меню для навигации.",
-        reply_markup=utils.get_main_keyboard()
+        "Используй кнопки меню для навигации:",
+        reply_markup=reply_markup
     )
+    print(f"✅ Ответ отправлен пользователю {user.id}")
+
+# async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     user = update.effective_user
+#     await update.message.reply_text(f"Привет, {user.first_name}! Бот работает.")
+#     print(f"🔵 Получена команда /start от {user.first_name} (ID: {user.id})")
+#
+#     # Создаем клавиатуру
+#     keyboard = [
+#         ['➕ Добавить', '🔍 Найти'],
+#         ['📋 Мои рекомендации', '🎲 Случайная'],
+#         ['✏️ Редактировать', '❌ Удалить'],
+#         ['❓ Помощь']
+#     ]
+#     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+#
+#     await update.message.reply_text(
+#         f"Привет, {user.first_name}! 👋\n\n"
+#         "Я бот для хранения рекомендаций.\n"
+#         "Ты можешь добавлять фильмы, книги, музыку и многое другое.\n\n"
+#         "Используй кнопки меню для навигации:",
+#         reply_markup=reply_markup
+#     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -367,3 +402,20 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.error(msg="Exception while handling an update:", exc_info=context.error)
     if update and update.effective_message:
         await update.effective_message.reply_text("Произошла ошибка. Попробуйте позже.")
+
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик всех текстовых сообщений (для отладки)"""
+    user = update.effective_user
+    text = update.message.text
+    logger.info(f"📝 Получен текст от {user.id}: {text}")
+
+    # Игнорируем команды (они уже обработаны)
+    if text.startswith('/'):
+        return
+
+    # Если это не команда и не обработано другими обработчиками
+    await update.message.reply_text(
+        "❓ Неизвестная команда.\n"
+        "Используй /start для меню или /help для списка команд."
+    )

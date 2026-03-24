@@ -210,3 +210,7 @@ __marimo__/
 *.db
 *.sqlite
 *.sqlite3
+
+filter_proxies.py
+socks5.txt
+working_proxies.txt
