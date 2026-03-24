@@ -1,2 +1,2 @@
-# RecommenderBot
-RecommenderBot
+# Telegram-бот "Мой Рекомендатор"
+
