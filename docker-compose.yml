@@ -10,7 +10,7 @@ services:
 
     # сохраняем БД
     volumes:
-      - ./data:/app
+      - ./data:/app/data
 
     # Логи сразу видно
     stdin_open: true
