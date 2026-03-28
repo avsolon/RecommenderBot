@@ -1,0 +1,18 @@
+version: '3.9'
+
+services:
+  bot:
+    build: .
+    container_name: recommender_bot
+    restart: always
+    env_file:
+      - .env
+
+    # сохраняем БД
+    volumes:
+      - ./data:/app
+
+    # Логи сразу видно
+    stdin_open: true
+    tty: true
+    command: python bot.py
