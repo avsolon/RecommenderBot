@@ -11,7 +11,7 @@ def add(update: Update, context: CallbackContext):
     return CATEGORY
 
 
-def category_chosen(update: Update, context: CallbackContext):
+def add_category_chosen(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     context.user_data['category'] = query.data
