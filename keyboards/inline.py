@@ -12,16 +12,6 @@ CATEGORIES = {
     "other": "Другое"
 }
 
-# def categories_keyboard():
-#     return InlineKeyboardMarkup([
-#         [InlineKeyboardButton(cat, callback_data=cat)] for cat in CATEGORIES
-#     ])
-
-# def categories_keyboard():
-#     return InlineKeyboardMarkup([
-#         [InlineKeyboardButton(cat, callback_data=f"cat_{cat}")] for cat in CATEGORIES
-#     ])
-
 def categories_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(name, callback_data=f"cat_{key}")]

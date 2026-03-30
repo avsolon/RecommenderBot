@@ -26,28 +26,6 @@ def add_category_chosen(update: Update, context: CallbackContext):
     query.edit_message_text("Введите название:")
     return TITLE
 
-# def add_category_chosen(update: Update, context: CallbackContext):
-#     query = update.callback_query
-#     query.answer()
-#
-#     # получаем "cat_Фильмы"
-#     data = query.data
-#
-#     category = data.replace("cat_", "")
-#
-#     context.user_data['category'] = category
-#
-#     query.edit_message_text("Введите название:")
-#     return TITLE
-
-# def add_category_chosen(update: Update, context: CallbackContext):
-#     query = update.callback_query
-#     query.answer()
-#     context.user_data['category'] = query.data
-#     query.edit_message_text("Введите название:")
-#     return TITLE
-
-
 def title_received(update: Update, context: CallbackContext):
     context.user_data['title'] = update.message.text
     update.message.reply_text("Введите комментарий:")
@@ -61,20 +39,3 @@ def comment_received(update: Update, context: CallbackContext):
                        update.message.text)
     update.message.reply_text("Сохранено")
     return ConversationHandler.END
-
-
-
-
-# def add(update: Update, context: CallbackContext):
-#     if update.message:
-#         update.message.reply_text(
-#             "Выберите категорию:",
-#             reply_markup=categories_keyboard()
-#         )
-#     else:
-#         update.callback_query.answer()
-#         update.callback_query.edit_message_text(
-#             "Выберите категорию:",
-#             reply_markup=categories_keyboard()
-#         )
-#     return CATEGORY

@@ -78,14 +78,6 @@ def update_recommendation(user_id, rec_id, field, value):
     conn.commit()
     conn.close()
 
-# def update_recommendation(user_id, rec_id, field, value):
-#     conn = get_connection()
-#     cursor = conn.cursor()
-#     query = f"UPDATE recommendations SET {field}=? WHERE id=? AND user_id=?"
-#     cursor.execute(query, (value, rec_id, user_id))
-#     conn.commit()
-#     conn.close()
-
 def search_recommendations(user_id, keyword=None, category=None):
     conn = get_connection()
     cursor = conn.cursor()
