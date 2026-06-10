@@ -1,39 +1,36 @@
 from telegram import Update
-from telegram.ext import CallbackContext
+from telegram.ext import ContextTypes
+
 from services.recommendation_service import get_user_recommendations, get_statistics
 from config import CATEGORIES
 from db import get_session
 
 
-def list_handler(update: Update, context: CallbackContext):
+async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
-    import asyncio
-    async def _list():
-        async for session in get_session():
-            stats = await get_statistics(session, user_id)
-            results = await get_user_recommendations(session, user_id, limit=50)
+    async for session in get_session():
+        stats = await get_statistics(session, user_id)
+        results = await get_user_recommendations(session, user_id, limit=50)
 
-            if not results:
-                await update.message.reply_text(
-                    "📭 У тебя пока нет рекомендаций.\n\n"
-                    "➕ Нажми «Добавить», чтобы создать первую!"
-                )
-                return
-
-            text = (
-                f"📊 *Твои рекомендации*\n"
-                f"📈 Всего: {stats['total']} | 🌍 Публичных: {stats['public']} | 🔒 Приватных: {stats['private']}\n\n"
+        if not results:
+            await update.message.reply_text(
+                "📭 У тебя пока нет рекомендаций.\n\n"
+                "➕ Нажми «Добавить», чтобы создать первую!"
             )
+            return
 
-            for r in results:
-                cat_name = CATEGORIES.get(r.category, r.category)
-                visibility = "🌍" if r.is_public else "🔒"
-                text += f"{visibility} ID:{r.id} | *{r.title}*\n📂 {cat_name}"
-                if r.comment:
-                    text += f"\n💬 {r.comment[:50]}{'...' if len(r.comment) > 50 else ''}"
-                text += "\n\n"
+        text = (
+            f"📊 *Твои рекомендации*\n"
+            f"📈 Всего: {stats['total']} | 🌍 Публичных: {stats['public']} | 🔒 Приватных: {stats['private']}\n\n"
+        )
 
-            await update.message.reply_text(text, parse_mode="Markdown")
+        for r in results:
+            cat_name = CATEGORIES.get(r.category, r.category)
+            visibility = "🌍" if r.is_public else "🔒"
+            text += f"{visibility} ID:{r.id} | *{r.title}*\n📂 {cat_name}"
+            if r.comment:
+                text += f"\n💬 {r.comment[:50]}{'...' if len(r.comment) > 50 else ''}"
+            text += "\n\n"
 
-    asyncio.run(_list())
+        await update.message.reply_text(text, parse_mode="Markdown")

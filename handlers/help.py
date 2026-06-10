@@ -1,8 +1,8 @@
 from telegram import Update
-from telegram.ext import CallbackContext
+from telegram.ext import ContextTypes
 
 
-def help_handler(update: Update, context: CallbackContext):
+async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = """
 🤖 *Мой Рекомендатор* — твой личный помощник по хранению и поиску рекомендаций!
 
@@ -31,4 +31,4 @@ def help_handler(update: Update, context: CallbackContext):
 
 💡 *Совет:* Делись своими рекомендациями с другими, делая их публичными при добавлении!
     """
-    update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, parse_mode="Markdown")
