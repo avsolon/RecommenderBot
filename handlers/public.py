@@ -50,9 +50,11 @@ async def public_category_chosen(update: Update, context: ContextTypes.DEFAULT_T
             [{"rec": r} for r in recs],
             prefix="pubrec", page=0, has_next=has_next, category=key
         )
-        keyboard.inline_keyboard.insert(0, [
+        rows = [list(r) for r in keyboard.inline_keyboard]
+        rows.insert(0, [
             InlineKeyboardButton("🔙 Назад к категориям", callback_data="pub_back_cat")
         ])
+        keyboard = InlineKeyboardMarkup(rows)
 
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
@@ -85,9 +87,11 @@ async def public_paginate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [{"rec": r} for r in recs],
             prefix="pubrec", page=page, has_next=has_next, category=category
         )
-        keyboard.inline_keyboard.insert(0, [
+        rows = [list(r) for r in keyboard.inline_keyboard]
+        rows.insert(0, [
             InlineKeyboardButton("🔙 Назад к категориям", callback_data="pub_back_cat")
         ])
+        keyboard = InlineKeyboardMarkup(rows)
 
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
@@ -186,9 +190,11 @@ async def public_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
             [{"rec": r} for r in recs],
             prefix="pubrec", page=page, has_next=has_next, category=category
         )
-        keyboard.inline_keyboard.insert(0, [
+        rows = [list(r) for r in keyboard.inline_keyboard]
+        rows.insert(0, [
             InlineKeyboardButton("🔙 Назад к категориям", callback_data="pub_back_cat")
         ])
+        keyboard = InlineKeyboardMarkup(rows)
 
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
