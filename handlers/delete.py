@@ -1,17 +1,16 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
 
-from services.recommendation_service import get_user_recommendations, delete_recommendation
+from services.recommendation_service import get_user_recommendations, delete_recommendation, get_or_create_user
 from db import get_session
 
 DELETE_CONFIRM = 1
 
 
 async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-
     async for session in get_session():
-        records = await get_user_recommendations(session, user_id)
+        user = await get_or_create_user(session, update.message.from_user.id)
+        records = await get_user_recommendations(session, user.id)
 
         if not records:
             await update.message.reply_text("📭 У тебя нет записей для удаления.")
@@ -55,10 +54,10 @@ async def confirm_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "yes":
         rec_id = context.user_data.get('delete_id')
-        user_id = query.from_user.id
 
         async for session in get_session():
-            success = await delete_recommendation(session, rec_id, user_id)
+            user = await get_or_create_user(session, query.from_user.id)
+            success = await delete_recommendation(session, rec_id, user.id)
             if success:
                 await query.edit_message_text("✅ Запись удалена.")
             else:

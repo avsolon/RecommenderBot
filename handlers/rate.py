@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 
 from keyboards.inline import rating_keyboard
 from services.rating_service import rate_recommendation, get_recommendation_rating_stats
-from services.recommendation_service import get_recommendation_by_id
+from services.recommendation_service import get_recommendation_by_id, get_or_create_user
 from config import CATEGORIES
 from db import get_session
 
@@ -37,11 +37,11 @@ async def rate_recommendation_handler(update: Update, context: ContextTypes.DEFA
     parts = data.split("_")
     rec_id = int(parts[1])
     score = int(parts[2])
-    user_id = query.from_user.id
 
     async for session in get_session():
         try:
-            await rate_recommendation(session, user_id, rec_id, score)
+            user = await get_or_create_user(session, query.from_user.id)
+            await rate_recommendation(session, user.id, rec_id, score)
             stats = await get_recommendation_rating_stats(session, rec_id)
             rec = await get_recommendation_by_id(session, rec_id)
 

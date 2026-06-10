@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from keyboards.inline import categories_keyboard
-from services.recommendation_service import get_user_recommendations, update_recommendation
+from services.recommendation_service import get_user_recommendations, update_recommendation, get_or_create_user
 from config import CATEGORIES
 from db import get_session
 
@@ -10,10 +10,9 @@ SELECT_RECORD, SELECT_FIELD, ENTER_NEW_VALUE = range(3)
 
 
 async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-
     async for session in get_session():
-        records = await get_user_recommendations(session, user_id)
+        user = await get_or_create_user(session, update.message.from_user.id)
+        records = await get_user_recommendations(session, user.id)
 
         if not records:
             await update.message.reply_text("📭 Нет записей для редактирования.")
@@ -72,10 +71,10 @@ async def category_chosen_edit(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     category = query.data.replace("cat_", "")
     rec_id = context.user_data.get('edit_id')
-    user_id = query.from_user.id
 
     async for session in get_session():
-        success = await update_recommendation(session, rec_id, user_id, "category", category)
+        user = await get_or_create_user(session, query.from_user.id)
+        success = await update_recommendation(session, rec_id, user.id, "category", category)
         if success:
             cat_name = CATEGORIES.get(category, category)
             await query.edit_message_text(f"✅ Категория изменена на «{cat_name}».")
@@ -88,11 +87,11 @@ async def category_chosen_edit(update: Update, context: ContextTypes.DEFAULT_TYP
 async def new_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
     field = context.user_data.get('field')
     rec_id = context.user_data.get('edit_id')
-    user_id = update.message.from_user.id
     value = update.message.text
 
     async for session in get_session():
-        success = await update_recommendation(session, rec_id, user_id, field, value)
+        user = await get_or_create_user(session, update.message.from_user.id)
+        success = await update_recommendation(session, rec_id, user.id, field, value)
         if success:
             field_names = {"title": "название", "comment": "комментарий"}
             fname = field_names.get(field, field)

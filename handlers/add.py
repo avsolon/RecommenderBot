@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from handlers.base import send_or_edit_message
 from keyboards.inline import categories_keyboard
-from services.recommendation_service import add_recommendation
+from services.recommendation_service import add_recommendation, get_or_create_user
 from db import get_session
 
 CATEGORY, TITLE, COMMENT, VISIBILITY = range(4)
@@ -55,13 +55,13 @@ async def visibility_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     is_public = query.data == "vis_public"
-    user_id = query.from_user.id
     category = context.user_data['category']
     title = context.user_data['title']
     comment = context.user_data.get('comment', "")
 
     async for session in get_session():
-        await add_recommendation(session, user_id, category, title, comment, is_public=is_public)
+        user = await get_or_create_user(session, query.from_user.id)
+        await add_recommendation(session, user.id, category, title, comment, is_public=is_public)
 
     status = "🌍 Публичная" if is_public else "🔒 Приватная"
     await query.edit_message_text(f"✅ Сохранено! ({status})")

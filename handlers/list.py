@@ -1,17 +1,16 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from services.recommendation_service import get_user_recommendations, get_statistics
+from services.recommendation_service import get_user_recommendations, get_statistics, get_or_create_user
 from config import CATEGORIES
 from db import get_session
 
 
 async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-
     async for session in get_session():
-        stats = await get_statistics(session, user_id)
-        results = await get_user_recommendations(session, user_id, limit=50)
+        user = await get_or_create_user(session, update.message.from_user.id)
+        stats = await get_statistics(session, user.id)
+        results = await get_user_recommendations(session, user.id, limit=50)
 
         if not results:
             await update.message.reply_text(

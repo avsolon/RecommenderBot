@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from handlers.base import send_or_edit_message
 from keyboards.inline import categories_with_all_keyboard, rec_actions_keyboard, pagination_keyboard
-from services.recommendation_service import get_public_recommendations, get_recommendation_by_id, toggle_public
+from services.recommendation_service import get_public_recommendations, get_recommendation_by_id, toggle_public, get_or_create_user
 from services.rating_service import get_recommendation_rating_stats, get_user_rating
 from config import CATEGORIES, DEFAULT_PAGE_SIZE
 from db import get_session
@@ -107,9 +107,10 @@ async def public_view_rec(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return VIEW_REC
 
         stats = await get_recommendation_rating_stats(session, rec_id)
-        user_rating = await get_user_rating(session, query.from_user.id, rec_id)
+        user = await get_or_create_user(session, query.from_user.id)
+        user_rating = await get_user_rating(session, user.id, rec_id)
 
-        is_owner = rec.user_id == query.from_user.id
+        is_owner = rec.user_id == user.id
         cat_name = CATEGORIES.get(rec.category, rec.category)
         author_name = rec.author.display_name if rec.author else "Неизвестно"
 
@@ -145,7 +146,8 @@ async def public_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async for session in get_session():
         try:
-            new_status = await toggle_public(session, rec_id, query.from_user.id)
+            user = await get_or_create_user(session, query.from_user.id)
+            new_status = await toggle_public(session, rec_id, user.id)
             status_text = "🌍 Публичная" if new_status else "🔒 Приватная"
             await query.edit_message_text(f"✅ Статус изменён: {status_text}")
         except ValueError:

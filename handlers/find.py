@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from handlers.base import send_or_edit_message
 from keyboards.inline import categories_keyboard, search_menu_keyboard
-from services.recommendation_service import search_recommendations, get_random_recommendation
+from services.recommendation_service import search_recommendations, get_random_recommendation, get_or_create_user
 from config import CATEGORIES
 from db import get_session
 
@@ -39,11 +39,11 @@ async def mode_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['mode'] = mode
 
     if mode == "random":
-        user_id = query.from_user.id
         category = context.user_data.get('category')
 
         async for session in get_session():
-            rec = await get_random_recommendation(session, user_id=user_id, category=category, public_only=False)
+            user = await get_or_create_user(session, query.from_user.id)
+            rec = await get_random_recommendation(session, user_id=user.id, category=category, public_only=False)
             if not rec:
                 await query.edit_message_text("😕 Нет рекомендаций в этой категории.")
                 return ConversationHandler.END
@@ -60,11 +60,11 @@ async def mode_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def keyword_entered(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyword = update.message.text
-    user_id = update.message.from_user.id
     category = context.user_data.get('category')
 
     async for session in get_session():
-        results = await search_recommendations(session, user_id=user_id, keyword=keyword, category=category)
+        user = await get_or_create_user(session, update.message.from_user.id)
+        results = await search_recommendations(session, user_id=user.id, keyword=keyword, category=category)
 
         if not results:
             await update.message.reply_text("😕 Ничего не найдено.")
