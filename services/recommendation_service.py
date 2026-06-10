@@ -1,6 +1,7 @@
 import random
 from sqlalchemy import select, func, desc, delete as sa_delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models import User, Recommendation, Rating
 
@@ -40,7 +41,7 @@ async def get_user_recommendations(session: AsyncSession, user_id: int, limit: i
 
 
 async def get_recommendation_by_id(session: AsyncSession, rec_id: int):
-    result = await session.execute(select(Recommendation).where(Recommendation.id == rec_id))
+    result = await session.execute(select(Recommendation).options(selectinload(Recommendation.author)).where(Recommendation.id == rec_id))
     return result.scalar_one_or_none()
 
 
@@ -104,7 +105,7 @@ async def search_recommendations(session: AsyncSession, user_id: int = None, key
     if conditions:
         query = query.where(*conditions)
 
-    query = query.order_by(Recommendation.created_at.desc()).limit(limit).offset(offset)
+    query = query.options(selectinload(Recommendation.author)).order_by(Recommendation.created_at.desc()).limit(limit).offset(offset)
     result = await session.execute(query)
     return result.scalars().all()
 
@@ -124,7 +125,7 @@ async def get_popular_recommendations(session: AsyncSession, category: str = Non
         query = query.where(Recommendation.category == category)
 
     query = query.group_by(Recommendation.id)
-    query = query.order_by(
+    query = query.options(selectinload(Recommendation.author)).order_by(
         func.avg(Rating.score).desc().nullslast(),
         func.count(Rating.id).desc()
     ).limit(limit)
@@ -155,6 +156,7 @@ async def get_random_recommendation(session: AsyncSession, user_id: int = None, 
     if conditions:
         query = query.where(*conditions)
 
+    query = query.options(selectinload(Recommendation.author))
     result = await session.execute(query)
     rows = result.scalars().all()
     return random.choice(rows) if rows else None
