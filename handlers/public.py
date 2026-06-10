@@ -129,14 +129,15 @@ async def public_view_rec(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"\n👍 Твоя оценка: {user_rating}/5"
 
         keyboard = rec_actions_keyboard(rec_id, rec.is_public, is_owner)
+        rows = [list(r) for r in keyboard.inline_keyboard]
         if user_rating:
-            keyboard.inline_keyboard.append([
+            rows.append([
                 InlineKeyboardButton("Изменить оценку", callback_data=f"showrate_{rec_id}")
             ])
-
-        keyboard.inline_keyboard.append([
+        rows.append([
             InlineKeyboardButton("🔙 К списку", callback_data="pub_back_list")
         ])
+        keyboard = InlineKeyboardMarkup(rows)
 
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
