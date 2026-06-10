@@ -1,25 +1,39 @@
 from telegram import Update
 from telegram.ext import CallbackContext
-from services.recommendation_service import get_user_recommendations
+from services.recommendation_service import get_user_recommendations, get_statistics
+from config import CATEGORIES
+from db import get_session
 
 
 def list_handler(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
 
-    results = get_user_recommendations(user_id)
+    import asyncio
+    async def _list():
+        async for session in get_session():
+            stats = await get_statistics(session, user_id)
+            results = await get_user_recommendations(session, user_id, limit=50)
 
-    if not results:
-        update.message.reply_text("У тебя пока нет рекомендаций")
-        return
+            if not results:
+                await update.message.reply_text(
+                    "📭 У тебя пока нет рекомендаций.\n\n"
+                    "➕ Нажми «Добавить», чтобы создать первую!"
+                )
+                return
 
-    text = ""
+            text = (
+                f"📊 *Твои рекомендации*\n"
+                f"📈 Всего: {stats['total']} | 🌍 Публичных: {stats['public']} | 🔒 Приватных: {stats['private']}\n\n"
+            )
 
-    for r in results:
-        text += f"📌 ID: {r[0]}\n"
-        text += f"📂 {r[1]}\n"
-        text += f"📖 {r[2]}\n"
-        if r[3]:
-            text += f"💬 {r[3]}\n"
-        text += "\n"
+            for r in results:
+                cat_name = CATEGORIES.get(r.category, r.category)
+                visibility = "🌍" if r.is_public else "🔒"
+                text += f"{visibility} ID:{r.id} | *{r.title}*\n📂 {cat_name}"
+                if r.comment:
+                    text += f"\n💬 {r.comment[:50]}{'...' if len(r.comment) > 50 else ''}"
+                text += "\n\n"
 
-    update.message.reply_text(text)
+            await update.message.reply_text(text, parse_mode="Markdown")
+
+    asyncio.run(_list())

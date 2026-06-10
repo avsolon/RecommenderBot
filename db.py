@@ -1,24 +1,22 @@
-import sqlite3
+import os
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+from config import DATABASE_URL
 
-DB_NAME = "recommendations.db"
+engine = create_async_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
+async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-def get_connection():
-    return sqlite3.connect(DB_NAME, check_same_thread=False)
+class Base(DeclarativeBase):
+    pass
 
 
-def init_db():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS recommendations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        category TEXT NOT NULL,
-        title TEXT NOT NULL,
-        comment TEXT,
-        date_added DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    conn.commit()
-    conn.close()
+async def init_db():
+    async with engine.begin() as conn:
+        from models import Recommendation, Rating
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_session() -> AsyncSession:
+    async with async_session() as session:
+        yield session

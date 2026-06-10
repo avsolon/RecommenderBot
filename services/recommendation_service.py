@@ -1,112 +1,188 @@
-from db import get_connection
 import random
+from sqlalchemy import select, func, desc, delete as sa_delete, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from models import User, Recommendation, Rating
 
 
-def add_recommendation(user_id, category, title, comment):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO recommendations (user_id, category, title, comment) VALUES (?, ?, ?, ?)",
-                   (user_id, category, title, comment))
-    conn.commit()
-    conn.close()
-
-def get_all(user_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, category, title FROM recommendations WHERE user_id=?", (user_id,))
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-def get_random(user_id, category=None):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    if category:
-        cursor.execute(
-            """
-            SELECT category, title, comment 
-            FROM recommendations 
-            WHERE user_id=? AND category=?
-            """,
-            (user_id, category)
-        )
+async def get_or_create_user(session: AsyncSession, telegram_id: int, username: str = None, first_name: str = None) -> User:
+    result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        user = User(telegram_id=telegram_id, username=username, first_name=first_name)
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
     else:
-        cursor.execute(
-            """
-            SELECT category, title, comment 
-            FROM recommendations 
-            WHERE user_id=?
-            """,
-            (user_id,)
+        if (username and user.username != username) or (first_name and user.first_name != first_name):
+            user.username = username
+            user.first_name = first_name
+            await session.commit()
+    return user
+
+
+async def add_recommendation(session: AsyncSession, user_id: int, category: str, title: str, comment: str, is_public: bool = False) -> Recommendation:
+    rec = Recommendation(user_id=user_id, category=category, title=title, comment=comment, is_public=is_public)
+    session.add(rec)
+    await session.commit()
+    await session.refresh(rec)
+    return rec
+
+
+async def get_user_recommendations(session: AsyncSession, user_id: int, limit: int = 10, offset: int = 0):
+    result = await session.execute(
+        select(Recommendation)
+        .where(Recommendation.user_id == user_id)
+        .order_by(Recommendation.created_at.desc())
+        .limit(limit).offset(offset)
+    )
+    return result.scalars().all()
+
+
+async def get_recommendation_by_id(session: AsyncSession, rec_id: int):
+    result = await session.execute(select(Recommendation).where(Recommendation.id == rec_id))
+    return result.scalar_one_or_none()
+
+
+async def update_recommendation(session: AsyncSession, rec_id: int, user_id: int, field: str, value) -> bool:
+    allowed = {"category", "title", "comment", "is_public"}
+    if field not in allowed:
+        return False
+    result = await session.execute(
+        select(Recommendation).where(Recommendation.id == rec_id, Recommendation.user_id == user_id)
+    )
+    rec = result.scalar_one_or_none()
+    if not rec:
+        return False
+    setattr(rec, field, value)
+    await session.commit()
+    return True
+
+
+async def delete_recommendation(session: AsyncSession, rec_id: int, user_id: int) -> bool:
+    result = await session.execute(
+        select(Recommendation).where(Recommendation.id == rec_id, Recommendation.user_id == user_id)
+    )
+    rec = result.scalar_one_or_none()
+    if not rec:
+        return False
+    await session.execute(sa_delete(Rating).where(Rating.recommendation_id == rec_id))
+    await session.delete(rec)
+    await session.commit()
+    return True
+
+
+async def toggle_public(session: AsyncSession, rec_id: int, user_id: int) -> bool:
+    result = await session.execute(
+        select(Recommendation).where(Recommendation.id == rec_id, Recommendation.user_id == user_id)
+    )
+    rec = result.scalar_one_or_none()
+    if not rec:
+        raise ValueError("Recommendation not found or not owned by user")
+    rec.is_public = not rec.is_public
+    await session.commit()
+    return rec.is_public
+
+
+async def search_recommendations(session: AsyncSession, user_id: int = None, keyword: str = None, category: str = None, public_only: bool = False, limit: int = 10, offset: int = 0):
+    query = select(Recommendation)
+
+    conditions = []
+    if public_only:
+        conditions.append(Recommendation.is_public == True)
+    if user_id:
+        conditions.append(Recommendation.user_id == user_id)
+    if category and category != "ALL":
+        conditions.append(Recommendation.category == category)
+    if keyword:
+        keyword_filter = or_(
+            Recommendation.title.ilike(f"%{keyword}%"),
+            Recommendation.comment.ilike(f"%{keyword}%")
         )
-    rows = cursor.fetchall()
-    conn.close()
+        conditions.append(keyword_filter)
+
+    if conditions:
+        query = query.where(*conditions)
+
+    query = query.order_by(Recommendation.created_at.desc()).limit(limit).offset(offset)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+async def get_popular_recommendations(session: AsyncSession, category: str = None, limit: int = 10):
+    query = (
+        select(
+            Recommendation,
+            func.coalesce(func.avg(Rating.score), 0).label("avg_score"),
+            func.count(Rating.id).label("rating_count")
+        )
+        .outerjoin(Rating, Rating.recommendation_id == Recommendation.id)
+        .where(Recommendation.is_public == True)
+    )
+
+    if category and category != "ALL":
+        query = query.where(Recommendation.category == category)
+
+    query = query.group_by(Recommendation.id)
+    query = query.order_by(
+        func.avg(Rating.score).desc().nullslast(),
+        func.count(Rating.id).desc()
+    ).limit(limit)
+
+    result = await session.execute(query)
+    rows = result.all()
+    return [
+        {
+            "rec": row[0],
+            "avg_score": round(float(row[1] or 0), 1),
+            "rating_count": row[2]
+        }
+        for row in rows
+    ]
+
+
+async def get_random_recommendation(session: AsyncSession, user_id: int = None, category: str = None, public_only: bool = True):
+    query = select(Recommendation)
+
+    conditions = []
+    if public_only:
+        conditions.append(Recommendation.is_public == True)
+    if user_id:
+        conditions.append(Recommendation.user_id == user_id)
+    if category and category != "ALL":
+        conditions.append(Recommendation.category == category)
+
+    if conditions:
+        query = query.where(*conditions)
+
+    result = await session.execute(query)
+    rows = result.scalars().all()
     return random.choice(rows) if rows else None
 
-def delete_by_id(user_id, rec_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM recommendations WHERE id=? AND user_id=?", (rec_id, user_id))
-    conn.commit()
-    conn.close()
 
-def update_field(user_id, rec_id, field, value):
-    if field not in ["category", "title", "comment"]:
-        return
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(f"UPDATE recommendations SET {field}=? WHERE id=? AND user_id=?",
-                   (value, rec_id, user_id))
-    conn.commit()
-    conn.close()
+async def get_public_recommendations(session: AsyncSession, category: str = None, limit: int = 10, offset: int = 0):
+    return await search_recommendations(
+        session=session, public_only=True,
+        category=category, limit=limit, offset=offset
+    )
 
-ALLOWED_FIELDS = {
-    "category": "category",
-    "title": "title",
-    "comment": "comment"
-}
 
-def update_recommendation(user_id, rec_id, field, value):
-    column = ALLOWED_FIELDS.get(field)
-    if not column:
-        return
-    conn = get_connection()
-    cursor = conn.cursor()
-    query = f"UPDATE recommendations SET {column}=? WHERE id=? AND user_id=?"
-    cursor.execute(query, (value, rec_id, user_id))
-    conn.commit()
-    conn.close()
+async def get_statistics(session: AsyncSession, user_id: int):
+    total_result = await session.execute(
+        select(func.count(Recommendation.id)).where(Recommendation.user_id == user_id)
+    )
+    total = total_result.scalar()
 
-def search_recommendations(user_id, keyword=None, category=None):
-    conn = get_connection()
-    cursor = conn.cursor()
-    query = "SELECT id, category, title, comment FROM recommendations WHERE user_id=?"
-    params = [user_id]
-    if category and category != "ALL":
-        query += " AND category=?"
-        params.append(category)
-    if keyword:
-        query += " AND (title LIKE ? OR comment LIKE ?)"
-        params.extend([f"%{keyword}%", f"%{keyword}%"])
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
+    public_result = await session.execute(
+        select(func.count(Recommendation.id)).where(
+            Recommendation.user_id == user_id,
+            Recommendation.is_public == True
+        )
+    )
+    public_count = public_result.scalar()
 
-def get_user_recommendations(user_id, limit=10):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, category, title, comment
-        FROM recommendations
-        WHERE user_id=?
-        ORDER BY date_added DESC
-        LIMIT ?
-    """, (user_id, limit))
-
-    rows = cursor.fetchall()
-    conn.close()
-
-    return rows
+    return {
+        "total": total or 0,
+        "public": public_count or 0,
+        "private": (total or 0) - (public_count or 0)
+    }
