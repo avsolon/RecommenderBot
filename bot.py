@@ -148,7 +148,7 @@ def build_app() -> Application:
                 CallbackQueryHandler(top_back, pattern="^top_back$"),
             ],
         },
-        fallbacks=[],
+        fallbacks=[], per_message=False,
     )
 
     # === REGISTER ===

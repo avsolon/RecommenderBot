@@ -7,7 +7,7 @@ from services.recommendation_service import get_popular_recommendations
 from config import CATEGORIES
 from db import get_session
 
-CATEGORY_TOP = range(1)
+CATEGORY_TOP = 0
 
 
 async def top_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
