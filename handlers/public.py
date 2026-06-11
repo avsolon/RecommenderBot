@@ -105,43 +105,49 @@ async def public_view_rec(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['view_rec_id'] = rec_id
 
     async for session in get_session():
-        rec = await get_recommendation_by_id(session, rec_id)
-        if not rec:
+        user = await get_or_create_user(session, query.from_user.id)
+        text, keyboard = await _build_rec_detail_view(session, rec_id, user.id)
+        if not text:
             await query.edit_message_text("Рекомендация не найдена или удалена.")
             return VIEW_REC
-
-        stats = await get_recommendation_rating_stats(session, rec_id)
-        user = await get_or_create_user(session, query.from_user.id)
-        user_rating = await get_user_rating(session, user.id, rec_id)
-
-        is_owner = rec.user_id == user.id
-        cat_name = CATEGORIES.get(rec.category, rec.category)
-        author_name = rec.author.display_name if rec.author else "Неизвестно"
-
-        text = (
-            f"📂 *{cat_name}*\n"
-            f"📖 *{rec.title}*\n"
-            f"💬 {rec.comment or '—'}\n\n"
-            f"👤 Автор: {author_name}\n"
-            f"⭐ Рейтинг: {stats['avg_score']} (голосов: {stats['count']})"
-        )
-        if user_rating:
-            text += f"\n👍 Твоя оценка: {user_rating}/5"
-
-        keyboard = rec_actions_keyboard(rec_id, rec.is_public, is_owner)
-        rows = [list(r) for r in keyboard.inline_keyboard]
-        if user_rating:
-            rows.append([
-                InlineKeyboardButton("Изменить оценку", callback_data=f"showrate_{rec_id}")
-            ])
-        rows.append([
-            InlineKeyboardButton("🔙 К списку", callback_data="pub_back_list")
-        ])
-        keyboard = InlineKeyboardMarkup(rows)
 
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
     return VIEW_REC
+
+
+async def _build_rec_detail_view(session, rec_id: int, user_id: int):
+    rec = await get_recommendation_by_id(session, rec_id)
+    if not rec:
+        return None, None
+
+    stats = await get_recommendation_rating_stats(session, rec_id)
+    user_rating = await get_user_rating(session, user_id, rec_id)
+    is_owner = rec.user_id == user_id
+    cat_name = CATEGORIES.get(rec.category, rec.category)
+    author_name = rec.author.display_name if rec.author else "Неизвестно"
+
+    text = (
+        f"📂 *{cat_name}*\n"
+        f"📖 *{rec.title}*\n"
+        f"💬 {rec.comment or '—'}\n\n"
+        f"👤 Автор: {author_name}\n"
+        f"⭐ Рейтинг: {stats['avg_score']} (голосов: {stats['count']})"
+    )
+    if user_rating:
+        text += f"\n👍 Твоя оценка: {user_rating}/5"
+
+    keyboard = rec_actions_keyboard(rec_id, rec.is_public, is_owner)
+    rows = [list(r) for r in keyboard.inline_keyboard]
+    if user_rating:
+        rows.append([
+            InlineKeyboardButton("Изменить оценку", callback_data=f"showrate_{rec_id}")
+        ])
+    rows.append([
+        InlineKeyboardButton("🔙 К списку", callback_data="pub_back_list")
+    ])
+
+    return text, InlineKeyboardMarkup(rows)
 
 
 async def public_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -153,8 +159,12 @@ async def public_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             user = await get_or_create_user(session, query.from_user.id)
             new_status = await toggle_public(session, rec_id, user.id)
-            status_text = "🌍 Публичная" if new_status else "🔒 Приватная"
-            await query.edit_message_text(f"✅ Статус изменён: {status_text}")
+            text, keyboard = await _build_rec_detail_view(session, rec_id, user.id)
+            if text and keyboard:
+                await query.edit_message_text(text, reply_markup=keyboard, parse_mode="Markdown")
+            else:
+                status_text = "🌍 Публичная" if new_status else "🔒 Приватная"
+                await query.edit_message_text(f"✅ Статус изменён: {status_text}")
         except ValueError:
             await query.edit_message_text("❌ Не удалось изменить статус.")
 

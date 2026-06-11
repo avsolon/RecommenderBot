@@ -68,7 +68,7 @@ def build_app() -> Application:
             COMMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, comment_received)],
             VISIBILITY: [CallbackQueryHandler(visibility_chosen, pattern="^vis_")],
         },
-        fallbacks=[], per_message=False,
+        fallbacks=[], per_message=False, allow_reentry=True,
     )
 
     # === DELETE ===
@@ -80,7 +80,7 @@ def build_app() -> Application:
         states={
             DELETE_CONFIRM: [CallbackQueryHandler(confirm_delete)],
         },
-        fallbacks=[], per_message=False,
+        fallbacks=[], per_message=False, allow_reentry=True,
     )
 
     # === FIND ===
@@ -94,7 +94,7 @@ def build_app() -> Application:
             CHOOSE_MODE: [CallbackQueryHandler(mode_chosen, pattern="^(random|search)$")],
             ENTER_KEYWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, keyword_entered)],
         },
-        fallbacks=[], per_message=False,
+        fallbacks=[], per_message=False, allow_reentry=True,
     )
 
     # === EDIT ===
@@ -111,7 +111,7 @@ def build_app() -> Application:
                 CallbackQueryHandler(category_chosen_edit, pattern="^cat_"),
             ],
         },
-        fallbacks=[], per_message=False,
+        fallbacks=[], per_message=False, allow_reentry=True,
     )
 
     # === PUBLIC ===

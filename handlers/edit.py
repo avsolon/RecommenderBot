@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from keyboards.inline import categories_keyboard
-from services.recommendation_service import get_user_recommendations, update_recommendation, get_or_create_user
+from services.recommendation_service import get_user_recommendations, update_recommendation, toggle_public, get_or_create_user
 from config import CATEGORIES
 from db import get_session
 
@@ -41,6 +41,7 @@ async def select_record(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📂 Изменить категорию", callback_data="field_category")],
         [InlineKeyboardButton("📖 Изменить название", callback_data="field_title")],
         [InlineKeyboardButton("💬 Изменить комментарий", callback_data="field_comment")],
+        [InlineKeyboardButton("🔒 Сменить статус", callback_data="field_visibility")],
     ])
     await query.edit_message_text(
         "✏️ *Что изменить?*",
@@ -55,6 +56,18 @@ async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     field = query.data.replace("field_", "")
     context.user_data['field'] = field
+
+    if field == "visibility":
+        rec_id = context.user_data.get('edit_id')
+        async for session in get_session():
+            user = await get_or_create_user(session, query.from_user.id)
+            try:
+                new_status = await toggle_public(session, rec_id, user.id)
+                status_text = "🌍 Публичная" if new_status else "🔒 Приватная"
+                await query.edit_message_text(f"✅ Статус изменён: {status_text}")
+            except ValueError:
+                await query.edit_message_text("❌ Не удалось изменить статус.")
+        return ConversationHandler.END
 
     if field == "category":
         await query.edit_message_text(
