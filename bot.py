@@ -135,7 +135,7 @@ def build_app() -> Application:
                 CallbackQueryHandler(rate_recommendation_handler, pattern="^rate_"),
             ],
         },
-        fallbacks=[], per_message=False,
+        fallbacks=[], per_message=False, allow_reentry=True,
     )
 
     # === TOP ===
@@ -150,7 +150,7 @@ def build_app() -> Application:
                 CallbackQueryHandler(top_back, pattern="^top_back$"),
             ],
         },
-        fallbacks=[], per_message=False,
+        fallbacks=[], per_message=False, allow_reentry=True,
     )
 
     # === REGISTER ===
