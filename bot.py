@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import traceback
 
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, ConversationHandler,
-    CallbackQueryHandler, MessageHandler, filters
+    CallbackQueryHandler, MessageHandler, filters, ContextTypes
 )
 
 from config import TOKEN, PROXY
@@ -35,6 +36,7 @@ from handlers.public import (
 from handlers.top import top_start, top_category_chosen, top_back, CATEGORY_TOP
 from handlers.rate import show_rating, rate_recommendation_handler
 
+logger = logging.getLogger(__name__)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -172,6 +174,13 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(public_toggle, pattern="^toggle_"))
     app.add_handler(CallbackQueryHandler(show_rating, pattern="^showrate_"))
     app.add_handler(CallbackQueryHandler(rate_recommendation_handler, pattern="^rate_\\d+_\\d+$"))
+
+    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        logger.error("Exception while handling an update:", exc_info=context.error)
+        if update and isinstance(update, Update) and update.effective_message:
+            await update.effective_message.reply_text("❌ Произошла внутренняя ошибка. Попробуй ещё раз.")
+
+    app.add_error_handler(error_handler)
 
     return app
 
