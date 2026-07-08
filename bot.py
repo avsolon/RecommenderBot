@@ -176,7 +176,8 @@ def build_app() -> Application:
     app.add_handler(CallbackQueryHandler(rate_recommendation_handler, pattern="^rate_\\d+_\\d+$"))
 
     async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-        logger.error("Exception while handling an update:", exc_info=context.error)
+        traceback.print_exception(type(context.error), context.error, context.error.__traceback__)
+        logger.error("Exception while handling an update", exc_info=context.error)
         if update and isinstance(update, Update) and update.effective_message:
             await update.effective_message.reply_text("❌ Произошла внутренняя ошибка. Попробуй ещё раз.")
 
