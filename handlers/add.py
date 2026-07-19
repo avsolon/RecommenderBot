@@ -55,9 +55,13 @@ async def visibility_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     is_public = query.data == "vis_public"
-    category = context.user_data['category']
-    title = context.user_data['title']
+    category = context.user_data.get('category')
+    title = context.user_data.get('title')
     comment = context.user_data.get('comment', "")
+
+    if not category or not title:
+        await query.edit_message_text("❌ Ошибка: данные не найдены. Начни сначала.")
+        return ConversationHandler.END
 
     async for session in get_session():
         user = await get_or_create_user(session, query.from_user.id)
