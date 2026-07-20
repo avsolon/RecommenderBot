@@ -1,10 +1,20 @@
-version: '3.9'
-
 services:
   db:
     image: postgres:16-alpine
     container_name: recommender_db
     restart: always
+    entrypoint: ["/db-entrypoint.sh"]
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=64MB
+      -c effective_cache_size=512MB
+      -c wal_buffers=4MB
+      -c min_wal_size=256MB
+      -c max_wal_size=1GB
+      -c max_connections=20
+    mem_limit: 512m
     environment:
       POSTGRES_DB: recommender
       POSTGRES_USER: postgres
@@ -13,16 +23,19 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db-entrypoint.sh:/db-entrypoint.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   bot:
     build: .
     container_name: recommender_bot
     restart: always
+    mem_limit: 256m
     depends_on:
       db:
         condition: service_healthy
@@ -37,6 +50,7 @@ services:
     build: .
     container_name: recommender_api
     restart: always
+    mem_limit: 256m
     depends_on:
       db:
         condition: service_healthy
