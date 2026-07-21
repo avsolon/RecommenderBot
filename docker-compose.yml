@@ -3,7 +3,6 @@ services:
     image: postgres:16-alpine
     container_name: recommender_db
     restart: always
-    entrypoint: ["/db-entrypoint.sh"]
     command: >
       postgres
       -c shared_buffers=256MB
@@ -23,7 +22,6 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db-entrypoint.sh:/db-entrypoint.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
